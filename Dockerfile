@@ -1,29 +1,22 @@
-FROM java-maven363:v1.0
+FROM gitlab/gitlab-runner:v13.1.1
+MAINTAINER Lusifer <banna19900501@gmail.com>
 
-ADD https://github.com/Yelp/dumb-init/releases/download/v1.0.2/dumb-init_1.0.2_amd64 /usr/bin/dumb-init
-RUN chmod +x /usr/bin/dumb-init
+ARG MAVEN_VERSION=3.6.3
+ARG SHA=c35a1803a6e70a126e80b2b3ae33eed961f83ed74d18fcd16909b2d44d7dada3203f1ffe726c17ef8dcca2dcaa9fca676987befeadc9b9f759967a8cb77181c0
+ARG BASE_URL=https://apache.osuosl.org/maven/maven-3/${MAVEN_VERSION}/binaries
 
-RUN apt-get update -y && \
-    apt-get upgrade -y && \
-    apt-get install -y lsb-release gnupg2 && \
-    apt-get install -y ca-certificates wget apt-transport-https vim nano && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+ADD jdk-8u241-linux-x64.tar.gz /usr/local/ 
 
-RUN echo "deb https://packages.gitlab.com/runner/gitlab-ci-multi-runner/ubuntu/ `lsb_release -cs` main" > /etc/apt/sources.list.d/runner_gitlab-ci-multi-runner.list && \
-    wget -q -O - https://packages.gitlab.com/gpg.key | apt-key add - && \
-    apt-get update -y && \
-    apt-get install -y gitlab-ci-multi-runner && \
-    wget -q https://github.com/docker/machine/releases/download/v0.7.0/docker-machine-Linux-x86_64 -O /usr/bin/docker-machine && \
-    chmod +x /usr/bin/docker-machine && \
-    apt-get clean && \
-    mkdir -p /etc/gitlab-runner/certs && \
-    chmod -R 700 /etc/gitlab-runner && \
-    rm -rf /var/lib/apt/lists/*
+RUN mkdir -p /usr/share/maven /usr/share/maven/ref \
+  && curl -fsSL -o /tmp/apache-maven.tar.gz ${BASE_URL}/apache-maven-${MAVEN_VERSION}-bin.tar.gz \
+  && echo "${SHA}  /tmp/apache-maven.tar.gz" | sha512sum -c - \
+  && tar -xzf /tmp/apache-maven.tar.gz -C /usr/share/maven --strip-components=1 \
+  && rm -f /tmp/apache-maven.tar.gz \
 
-ADD entrypoint /
-RUN chmod +x /entrypoint
+ENV JAVA_HOME=/usr/local/jdk1.8.0_241 \
+    LANG=en_US.UTF-8 \
+    LC_ALL=en_US.UTF-8
+ENV MAVEN_HOME /usr/share/maven
+ENV PATH $PATH:$JAVA_HOME/bin:$MAVEN_HOME/bin
 
-VOLUME ["/etc/gitlab-runner", "/home/gitlab-runner"]
-ENTRYPOINT ["/usr/bin/dumb-init", "/entrypoint"]
-CMD ["run", "--user=gitlab-runner", "--working-directory=/home/gitlab-runner"]
+WORKDIR /
